@@ -1,0 +1,41 @@
+import dependency.Deps
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm'
+    id 'org.jetbrains.kotlin.kapt'
+}
+
+group 'com.codingfeline.blockchainlite'
+version '1.0-SNAPSHOT'
+
+dependencies {
+    compile project(':core')
+    compile project(':network')
+
+    compile Deps.Kotlin.stdlib
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
+}
+
+kapt {
+    correctErrorTypes = true
+}
+
+jar {
+    manifest {
+        attributes "Implementation-Title": "blockchain.lite", "Implementation-Version": version
+        attributes "Main-Class": "com.codingfeline.blockchainlite.app.MainKt"
+    }
+    from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+}

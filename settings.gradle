@@ -1,0 +1,3 @@
+rootProject.name = 'blockchain-lite-kt'
+
+include 'core', 'app', 'network'
