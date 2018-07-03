@@ -11,12 +11,14 @@ import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.ws
 import io.ktor.features.CallLogging
 import io.ktor.features.DefaultHeaders
+import io.ktor.features.origin
 import io.ktor.http.HttpMethod
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.FrameType
 import io.ktor.http.cio.websocket.WebSocketSession
 import io.ktor.http.cio.websocket.readText
-import io.ktor.request.uri
+import io.ktor.request.host
+import io.ktor.request.port
 import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -30,16 +32,14 @@ import java.net.URI
 import java.time.Duration
 
 class WebSocketServer(
-    val nodeViewHolder: NodeViewHolder,
-    val moshi: Moshi
+        val nodeViewHolder: NodeViewHolder,
+        val peerDatabase: PeerDatabase,
+        val moshi: Moshi
 ) {
 
     private val logger = LoggerFactory.getLogger("WebSocketServer")
 
     private val webSocketClient = HttpClient(CIO).config { install(WebSockets) }
-
-    private val sockets = arrayListOf<Pair<Peer, WebSocketSession>>()
-    fun sockets() = sockets.toList()
 
     private val messageJsonAdapter: JsonAdapter<Message> by lazy { moshi.adapter(Message::class.java) }
 
@@ -52,8 +52,7 @@ class WebSocketServer(
             }
             routing {
                 webSocket {
-                    val peer = Peer(this.call.request.uri)
-                    logger.debug("received websocket connection: $peer")
+                    val peer = Peer("${this.call.request.origin.scheme}://${this.call.request.host()}:${this.call.request.port()}")
                     initConnection(peer, this)
                 }
             }
@@ -75,7 +74,7 @@ class WebSocketServer(
 
     private suspend fun initConnection(peer: Peer, session: WebSocketSession) {
         logger.debug("connection created: $peer")
-        sockets += peer to session
+        peerDatabase.addOrUpdateKnownPeers(peer, session)
         chainLengthMessage(session)
 
         try {
@@ -94,16 +93,16 @@ class WebSocketServer(
     }
 
     private fun buildLatestMessage(): String =
-        messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCK.ordinal, block = nodeViewHolder.blockChain.peek(), blockchain = null))
+            messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCK.ordinal, block = nodeViewHolder.blockChain.peek(), blockchain = null))
 
     private fun buildChainMessage(): String =
-        messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCKCHAIN.ordinal, block = null, blockchain = nodeViewHolder.blockChain.getBlocks()))
+            messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCKCHAIN.ordinal, block = null, blockchain = nodeViewHolder.blockChain.getBlocks()))
 
     private fun buildChainLengthMessage(): String =
-        messageJsonAdapter.toJson(Message(type = MessageType.QUERY_LATEST.ordinal, block = null, blockchain = null))
+            messageJsonAdapter.toJson(Message(type = MessageType.QUERY_LATEST.ordinal, block = null, blockchain = null))
 
     private fun buildAllMessage(): String =
-        messageJsonAdapter.toJson(Message(type = MessageType.QUERY_ALL.ordinal, blockchain = null, block = null))
+            messageJsonAdapter.toJson(Message(type = MessageType.QUERY_ALL.ordinal, blockchain = null, block = null))
 
     fun chainLengthMessage(session: WebSocketSession) {
         write(session, buildChainLengthMessage())
@@ -130,7 +129,7 @@ class WebSocketServer(
     }
 
     fun broadcast(message: String) {
-        sockets.forEach { write(it.second, message) }
+        peerDatabase.knownPeers.entries.forEach { write(it.value, message) }
     }
 
     fun handleBlockchainResponse(receivedBlocks: List<Block>) {

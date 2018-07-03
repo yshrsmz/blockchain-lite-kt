@@ -4,9 +4,11 @@ import com.codingfeline.blockchainlite.core.BlockChain
 import com.codingfeline.blockchainlite.core.GenesisBlock
 import com.codingfeline.blockchainlite.core.NodeViewHolder
 import com.codingfeline.blockchainlite.core.account.AccountDatabaseImpl
+import com.codingfeline.blockchainlite.core.transaction.TransactionPool
 import com.codingfeline.blockchainlite.core.util.CoreJsonAdapterFactory
 import com.codingfeline.blockchainlite.network.api.ApiServer
 import com.codingfeline.blockchainlite.network.p2p.Peer
+import com.codingfeline.blockchainlite.network.p2p.PeerDatabase
 import com.codingfeline.blockchainlite.network.p2p.WebSocketServer
 import com.codingfeline.blockchainlite.network.util.NetworkJsonAdapterFactory
 import com.squareup.moshi.Moshi
@@ -28,17 +30,20 @@ fun main(args: Array<String>) {
     } ?: emptyList()
 
     val nodeViewHolder = NodeViewHolder(
-        accountDatabase = AccountDatabaseImpl(),
-        blockChain = BlockChain(blocks = mutableListOf(GenesisBlock))
+            accountDatabase = AccountDatabaseImpl(),
+            transactionPool = TransactionPool.getDefault(),
+            blockChain = BlockChain(blocks = mutableListOf(GenesisBlock))
     )
 
     val moshi = Moshi.Builder()
-        .add(CoreJsonAdapterFactory())
-        .add(NetworkJsonAdapterFactory())
-        .build()
+            .add(CoreJsonAdapterFactory())
+            .add(NetworkJsonAdapterFactory())
+            .build()
 
-    val p2pServer = WebSocketServer(nodeViewHolder, moshi)
-    val apiServer = ApiServer(nodeViewHolder, moshi)
+    val peerDatabase = PeerDatabase.getDefault()
+
+    val p2pServer = WebSocketServer(nodeViewHolder, peerDatabase, moshi)
+    val apiServer = ApiServer(nodeViewHolder, peerDatabase, p2pServer, moshi)
 
     p2pServer.apply {
         connectToPeers(peers)
