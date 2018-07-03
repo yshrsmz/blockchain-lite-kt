@@ -1,5 +1,7 @@
 package com.codingfeline.blockchainlite.network.util
 
+import com.codingfeline.blockchainlite.network.api.TransactionRequest
+import com.codingfeline.blockchainlite.network.api.TransactionRequestJsonAdapter
 import com.codingfeline.blockchainlite.network.p2p.Message
 import com.codingfeline.blockchainlite.network.p2p.MessageJsonAdapter
 import com.squareup.moshi.JsonAdapter
@@ -12,6 +14,10 @@ class NetworkJsonAdapterFactory : JsonAdapter.Factory {
 
         if (type == Message::class.java) {
             return MessageJsonAdapter(moshi)
+        }
+
+        if (type == TransactionRequest::class.java) {
+            return TransactionRequestJsonAdapter(moshi)
         }
 
         return null

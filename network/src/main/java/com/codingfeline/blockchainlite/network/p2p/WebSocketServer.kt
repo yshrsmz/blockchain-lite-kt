@@ -2,6 +2,7 @@ package com.codingfeline.blockchainlite.network.p2p
 
 import com.codingfeline.blockchainlite.core.NodeViewHolder
 import com.codingfeline.blockchainlite.core.block.Block
+import com.codingfeline.blockchainlite.core.transaction.Transaction
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import io.ktor.application.install
@@ -93,16 +94,18 @@ class WebSocketServer(
     }
 
     private fun buildLatestMessage(): String =
-            messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCK.ordinal, block = nodeViewHolder.blockChain.peek(), blockchain = null))
+            messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCK.ordinal, block = nodeViewHolder.blockChain.peek()))
 
     private fun buildChainMessage(): String =
-            messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCKCHAIN.ordinal, block = null, blockchain = nodeViewHolder.blockChain.getBlocks()))
+            messageJsonAdapter.toJson(Message(type = MessageType.RESPONSE_BLOCKCHAIN.ordinal, blockchain = nodeViewHolder.blockChain.getBlocks()))
 
     private fun buildChainLengthMessage(): String =
-            messageJsonAdapter.toJson(Message(type = MessageType.QUERY_LATEST.ordinal, block = null, blockchain = null))
+            messageJsonAdapter.toJson(Message(type = MessageType.QUERY_LATEST.ordinal))
 
     private fun buildAllMessage(): String =
-            messageJsonAdapter.toJson(Message(type = MessageType.QUERY_ALL.ordinal, blockchain = null, block = null))
+            messageJsonAdapter.toJson(Message(type = MessageType.QUERY_ALL.ordinal))
+
+    private fun buildNewTransactionMessage(transaction: Transaction): String = messageJsonAdapter.toJson(Message(type = MessageType.NEW_TRANSACTION.ordinal, transactions = listOf(transaction)))
 
     fun chainLengthMessage(session: WebSocketSession) {
         write(session, buildChainLengthMessage())
@@ -122,6 +125,10 @@ class WebSocketServer(
 
     fun broadcastAllMessage() {
         broadcast(buildAllMessage())
+    }
+
+    fun broadcastNewTransaction(transaction: Transaction) {
+        broadcast(buildNewTransactionMessage(transaction))
     }
 
     private fun write(session: WebSocketSession, message: String) {
@@ -154,6 +161,11 @@ class WebSocketServer(
         }
     }
 
+    fun handleNewTransactionResponse(transactions: List<Transaction>) {
+        logger.info("New Transactions received: $transactions")
+        transactions.forEach { nodeViewHolder.transactionPool.add(it) }
+    }
+
     private fun handleMessage(from: WebSocketSession, json: String) {
         messageJsonAdapter.fromJson(json)?.let { message ->
             when (message.messageType()) {
@@ -168,6 +180,9 @@ class WebSocketServer(
                 }
                 MessageType.RESPONSE_BLOCKCHAIN -> {
                     handleBlockchainResponse(message.blockchain!!)
+                }
+                MessageType.NEW_TRANSACTION -> {
+                    handleNewTransactionResponse(message.transactions!!)
                 }
             }
         }

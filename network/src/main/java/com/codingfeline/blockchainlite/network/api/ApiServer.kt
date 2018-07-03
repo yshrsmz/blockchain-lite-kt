@@ -39,6 +39,8 @@ class ApiServer(
 
     private val transactionsAdapter by lazy { moshi.adapter<List<Transaction>>(Types.newParameterizedType(MutableList::class.java, Transaction::class.java)) }
 
+    private val transactionRequestAdapter by lazy { moshi.adapter<TransactionRequest>(TransactionRequest::class.java) }
+
     private val accountsAdapter by lazy { moshi.adapter<List<Account>>(Types.newParameterizedType(MutableList::class.java, Account::class.java)) }
 
     fun startServer(port: Int) {
@@ -70,6 +72,20 @@ class ApiServer(
 
                 get("/transactions") {
                     call.respondText(transactionsAdapter.toJson(nodeViewHolder.transactionPool.transactions), ContentType.Application.Json)
+                }
+
+                post("/transactions") {
+                    val data = call.receiveText()
+                    val request = transactionRequestAdapter.fromJson(data)
+
+                    if (request != null) {
+                        val transaction = request.toEntity()
+                        nodeViewHolder.transactionPool.add(transaction)
+                        webSocketServer.broadcastNewTransaction(transaction)
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.BadRequest)
+                    }
                 }
 
                 get("/accounts") {

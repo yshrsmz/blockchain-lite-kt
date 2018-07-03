@@ -6,7 +6,8 @@ import com.squareup.moshi.JsonClass
 data class Transaction(
         val from: String,
         val to: String,
-        val what: String,
+        val message: String,
         val quantity: Long,
-        val timestamp: Long
+        val timestamp: Long,
+        val hash: String
 )
