@@ -5,5 +5,5 @@ enum class MessageType {
     QUERY_ALL,
     RESPONSE_BLOCK,
     RESPONSE_BLOCKCHAIN,
-    NEW_TRANSACTION
+    NEW_TRANSACTION,
 }

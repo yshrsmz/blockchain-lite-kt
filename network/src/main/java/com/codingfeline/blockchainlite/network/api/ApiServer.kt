@@ -80,8 +80,9 @@ class ApiServer(
 
                     if (request != null) {
                         val transaction = request.toEntity()
-                        nodeViewHolder.transactionPool.add(transaction)
-                        webSocketServer.broadcastNewTransaction(transaction)
+                        if (nodeViewHolder.transactionPool.add(transaction)) {
+                            webSocketServer.broadcastNewTransaction(listOf(transaction))
+                        }
                         call.respond(HttpStatusCode.OK)
                     } else {
                         call.respond(HttpStatusCode.BadRequest)

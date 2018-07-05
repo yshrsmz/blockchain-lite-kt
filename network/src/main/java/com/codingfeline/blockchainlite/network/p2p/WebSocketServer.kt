@@ -24,6 +24,7 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.error
+import io.ktor.util.flattenForEach
 import io.ktor.websocket.webSocket
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.channels.consumeEach
@@ -53,6 +54,8 @@ class WebSocketServer(
             }
             routing {
                 webSocket {
+                    logger.info("WebSocket Connection request")
+                    this.call.request.headers.flattenForEach { s, s2 -> logger.debug("Header: $s - $s2") }
                     val peer = Peer("${this.call.request.origin.scheme}://${this.call.request.host()}:${this.call.request.port()}")
                     initConnection(peer, this)
                 }
@@ -105,7 +108,7 @@ class WebSocketServer(
     private fun buildAllMessage(): String =
             messageJsonAdapter.toJson(Message(type = MessageType.QUERY_ALL.ordinal))
 
-    private fun buildNewTransactionMessage(transaction: Transaction): String = messageJsonAdapter.toJson(Message(type = MessageType.NEW_TRANSACTION.ordinal, transactions = listOf(transaction)))
+    private fun buildNewTransactionMessage(transactions: List<Transaction>): String = messageJsonAdapter.toJson(Message(type = MessageType.NEW_TRANSACTION.ordinal, transactions = transactions))
 
     fun chainLengthMessage(session: WebSocketSession) {
         write(session, buildChainLengthMessage())
@@ -127,7 +130,7 @@ class WebSocketServer(
         broadcast(buildAllMessage())
     }
 
-    fun broadcastNewTransaction(transaction: Transaction) {
+    fun broadcastNewTransaction(transaction: List<Transaction>) {
         broadcast(buildNewTransactionMessage(transaction))
     }
 
@@ -163,7 +166,8 @@ class WebSocketServer(
 
     fun handleNewTransactionResponse(transactions: List<Transaction>) {
         logger.info("New Transactions received: $transactions")
-        transactions.forEach { nodeViewHolder.transactionPool.add(it) }
+        transactions.filter { nodeViewHolder.transactionPool.add(it) }
+                .let { broadcastNewTransaction(it) }
     }
 
     private fun handleMessage(from: WebSocketSession, json: String) {

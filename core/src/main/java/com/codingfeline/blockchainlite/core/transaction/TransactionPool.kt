@@ -4,7 +4,7 @@ interface TransactionPool {
     val transactions: List<Transaction>
     val isEmpty: Boolean
 
-    fun add(transaction: Transaction)
+    fun add(transaction: Transaction): Boolean
     fun remove(transaction: Transaction)
     fun clear()
 
@@ -25,8 +25,8 @@ class TransactionPoolImpl constructor(
     override val isEmpty: Boolean
         get() = transactionSet.isEmpty()
 
-    override fun add(transaction: Transaction) {
-        transactionSet.add(transaction)
+    override fun add(transaction: Transaction): Boolean {
+        return transactionSet.add(transaction)
     }
 
     override fun remove(transaction: Transaction) {
