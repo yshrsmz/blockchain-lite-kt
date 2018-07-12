@@ -6,4 +6,6 @@ enum class MessageType {
     RESPONSE_BLOCK,
     RESPONSE_BLOCKCHAIN,
     NEW_TRANSACTION,
+    OPEN_ROUND,
+    CLOSE_ROUND
 }

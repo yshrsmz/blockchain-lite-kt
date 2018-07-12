@@ -18,7 +18,8 @@ allprojects {
     }
 }
 
-task wrapper(type: Wrapper) {
+wrapper {
     gradleVersion = "4.8.1"
-    distributionType 'ALL'
+    //noinspection UnnecessaryQualifiedReference
+    distributionType = org.gradle.api.tasks.wrapper.Wrapper.DistributionType.ALL
 }

@@ -1,18 +1,22 @@
 package com.codingfeline.blockchainlite.app
 
+import com.codingfeline.blockchainlite.consensus.PoC
 import com.codingfeline.blockchainlite.core.BlockChain
 import com.codingfeline.blockchainlite.core.GenesisBlock
 import com.codingfeline.blockchainlite.core.NodeViewHolder
 import com.codingfeline.blockchainlite.core.account.AccountDatabaseImpl
 import com.codingfeline.blockchainlite.core.transaction.TransactionPool
-import com.codingfeline.blockchainlite.core.util.CoreJsonAdapterFactory
 import com.codingfeline.blockchainlite.network.api.ApiServer
 import com.codingfeline.blockchainlite.network.p2p.Peer
 import com.codingfeline.blockchainlite.network.p2p.PeerDatabase
 import com.codingfeline.blockchainlite.network.p2p.WebSocketServer
-import com.codingfeline.blockchainlite.network.util.NetworkJsonAdapterFactory
+import com.codingfeline.blockchainlite.util.JsonAdapterFactory
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.experimental.CommonPool
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
+import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>) {
     val logger = LoggerFactory.getLogger("Main")
@@ -36,14 +40,25 @@ fun main(args: Array<String>) {
     )
 
     val moshi = Moshi.Builder()
-            .add(CoreJsonAdapterFactory())
-            .add(NetworkJsonAdapterFactory())
+            .add(JsonAdapterFactory())
             .build()
 
     val peerDatabase = PeerDatabase.getDefault()
 
     val p2pServer = WebSocketServer(nodeViewHolder, peerDatabase, moshi)
     val apiServer = ApiServer(nodeViewHolder, peerDatabase, p2pServer, moshi)
+
+    val consensus = PoC()
+    launch(CommonPool) {
+        while (true) {
+            delay(30, TimeUnit.SECONDS)
+            if (consensus.shouldStartRound(System.currentTimeMillis())) {
+                logger.debug("should start new consensus round")
+            } else {
+                logger.debug("not the time")
+            }
+        }
+    }
 
     p2pServer.apply {
         connectToPeers(peers)
